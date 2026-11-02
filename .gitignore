@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+
+# ROS 2 / colcon
+build/
+install/
+log/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
