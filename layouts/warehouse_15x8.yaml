@@ -1,0 +1,22 @@
+# Warehouse layout from Fig. 1 of the proposal (15 x 8 cells).
+# One-way loop with two cross connectors (x = 7 down, x = 10 up) and four intersections.
+# |L| = 44 lane cells, 18 buffer cells (P1-P5, D1-D3, C1-C4, K1-K6), |V| = 62.
+#
+# Tokens (one per cell, first line = top row):
+#   .  void          #  storage rack
+#   < > ^ v          lane cell, arrows = admissible exit directions
+#   +                prefix marking an intersection (e.g. +<v: exits west and south)
+#   P* D* C* K*      pick-up, delivery, charging port, parking (dead-end buffer cells)
+
+name: warehouse_15x8
+cell_size: 1.0  # metres
+
+grid: |
+  .   #   #   P1  #   P2  #   #   P3  #   #   P4  #   P5  #
+  K6  v   <   <   <   <   <   +<v <   <   +<  <   <   <   <
+  K5  v   #   #   #   #   #   v   #   #   ^   #   #   #   ^
+  K4  v   #   #   #   #   #   v   #   #   ^   #   #   #   ^
+  K3  v   #   #   #   #   #   v   #   #   ^   #   #   #   ^
+  K2  v   #   #   #   #   #   v   #   #   ^   #   #   #   ^
+  K1  >   >   >   >   >   >   +>  >   >   +>^ >   >   >   ^
+  .   .   C1  C2  C3  C4  .   .   .   D1  .   D2  .   D3  .
