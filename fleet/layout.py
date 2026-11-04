@@ -79,7 +79,7 @@ class Layout:
 
     @cached_property
     def floor(self) -> frozenset[Cell]:
-        """V = L ∪ B: all cells a robot can stand on."""
+        """V = L U B: all cells a robot can stand on."""
         return self.lanes | self.buffer_cells
 
     @cached_property
