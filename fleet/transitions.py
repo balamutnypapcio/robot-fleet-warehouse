@@ -21,9 +21,8 @@ charged(i)      m_i <- Idle, b_i <- B
 
 from __future__ import annotations
 
-from typing import Any
-
 from dataclasses import replace
+from typing import Any
 
 from fleet.events import (
     Arrive,
@@ -40,8 +39,8 @@ from fleet.events import (
     Unloaded,
 )
 from fleet.guards import Model, is_enabled
-from fleet.state import SystemState, Mode
 from fleet.layout import CellKind
+from fleet.state import Mode, SystemState
 
 _MODE_FOR_GOAL = {
     CellKind.PICKUP: Mode.TO_PICK,
