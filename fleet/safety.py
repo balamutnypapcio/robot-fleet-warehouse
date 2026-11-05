@@ -17,7 +17,7 @@ it blocks nobody and all its cells can be released at once.
 
 from __future__ import annotations
 
-from fleet.events import Event, Enter
+from fleet.events import Enter, Event
 from fleet.guards import Model
 from fleet.state import SystemState, rest
 from fleet.transitions import next_state
@@ -48,6 +48,6 @@ def is_safe_state(s: SystemState, model: Model) -> bool:
 
 def safe(s: SystemState, e: Event, model: Model) -> bool:
     """safe(s, e): enter(i, v) is safe iff next_state(s, e) is a safe state; others always are."""
-    if not isinstance(e,Enter):
+    if not isinstance(e, Enter):
         return True
-    return is_safe_state(next_state(s,e,model),model)
+    return is_safe_state(next_state(s, e, model), model)
