@@ -91,7 +91,7 @@ def next_state(s: SystemState, e: Event, model: Model) -> SystemState:
         case Unload(robot=i):
             return _with_robot(s, i, mode=Mode.UNLOADING)
         case Unloaded(robot=i):
-            state = replace(s, delivered=s.delivered+1)
+            state = replace(s, delivered=s.delivered + 1)
             return _with_robot(state, i, mode=Mode.IDLE, order=None)
         case Charge(robot=i):
             return _with_robot(s, i, mode=Mode.CHARGING)
