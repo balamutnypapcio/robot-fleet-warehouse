@@ -332,3 +332,30 @@ def test_guards_alone_allow_the_move_that_closes_the_loop(model):
     s = next_state(s, Arrive(3), model)  # the robot stands on (2, 1): nobody can move now
     assert circular_wait(s, model)
     assert [e for e in enabled_events(s, model) if isinstance(e, Enter)] == []
+
+
+# station deadlock (issue #32): safe() only checks enter, so the guard of assign must prevent it
+
+
+def test_robot_gets_a_new_order_only_after_driving_home(model):
+    s = system(robot(D1, mode=Mode.UNLOADING, order=TO_P1), queue=(TO_P2,))
+    s = next_state(s, Unloaded(0), model)
+    assert Assign(0, TO_P2) not in enabled_events(s, model)
+
+    s = next_state(s, Dispatch(0, K1), model)
+    while s.robots[0].goal is not None:
+        assert Assign(0, TO_P2) not in enabled_events(s, model)
+        s = next_state(s, Enter(0, next_cell(s, 0, model.routes)), model)
+        s = next_state(s, Arrive(0), model)
+
+    assert s.robots[0].held == (K1,)
+    assert s.robots[0].mode is Mode.IDLE
+    assert Assign(0, TO_P2) in enabled_events(s, model)
+
+
+@pytest.mark.parametrize("seed", range(20))
+def test_supervised_runs_on_mini_deliver_the_whole_batch(model, seed):
+    for s in random_run(model.layout, model, seed, steps=6000, use_safe=True):
+        if s.delivered == 8:  # the size of the batch in random_run
+            return
+    pytest.fail(f"delivered only {s.delivered} of 8 orders, last state: {s}")

@@ -135,6 +135,65 @@ def test_assign_blocked_when_battery_too_low(model):
     assert is_enabled(too_low, Assign(0, ORDER), model) is False
 
 
+# assign only on a charger or a parking place (issue #32)
+
+
+def station_test_setup(name):
+    layout = load_layout(LAYOUTS / name)
+    model = Model(layout=layout, routes=build_routes(layout), q_max=2, b_res=3)
+    order = Order(id=1, pickup=layout.pickups[0], delivery=layout.deliveries[0], created_at=0.0)
+    return layout, model, order
+
+
+@pytest.mark.parametrize("name", ["warehouse_15x8.yaml", "mini.yaml"])
+def test_assign_blocked_on_pickup_stations(name):
+    layout, model, order = station_test_setup(name)
+    for cell in layout.pickups:
+        s = system(robot(cell, battery=400), queue=(order,))
+        assert feas(s, 0, order, model) is True  # only the position can be the reason
+        assert is_enabled(s, Assign(0, order), model) is False, cell
+
+
+@pytest.mark.parametrize("name", ["warehouse_15x8.yaml", "mini.yaml"])
+def test_assign_blocked_on_delivery_stations(name):
+    layout, model, order = station_test_setup(name)
+    for cell in layout.deliveries:
+        s = system(robot(cell, battery=400), queue=(order,))
+        assert feas(s, 0, order, model) is True
+        assert is_enabled(s, Assign(0, order), model) is False, cell
+
+
+@pytest.mark.parametrize("name", ["warehouse_15x8.yaml", "mini.yaml"])
+def test_assign_enabled_on_chargers(name):
+    layout, model, order = station_test_setup(name)
+    for cell in layout.chargers:
+        s = system(robot(cell, battery=400), queue=(order,))
+        assert is_enabled(s, Assign(0, order), model) is True, cell
+
+
+@pytest.mark.parametrize("name", ["warehouse_15x8.yaml", "mini.yaml"])
+def test_assign_enabled_on_parking_places(name):
+    layout, model, order = station_test_setup(name)
+    for cell in layout.parkings:
+        s = system(robot(cell, battery=400), queue=(order,))
+        assert is_enabled(s, Assign(0, order), model) is True, cell
+
+
+def test_assign_blocked_on_a_lane_cell(model):
+    s = system(robot((1, 1), battery=400), queue=(ORDER,))
+    assert is_enabled(s, Assign(0, ORDER), model) is False
+
+
+def test_robot_on_a_station_can_leave_instead_of_taking_an_order(model):
+    # Without the rule robot 0 could take ORDER here. Its pick-up P1 is held by robot 1, which
+    # waits for D1, so neither robot could ever leave.
+    to_d1 = Order(id=3, pickup=P1, delivery=D1, created_at=0.0)
+    s = system(robot(D1), robot(P1, mode=Mode.LOADED, order=to_d1), queue=(ORDER,))
+    events = enabled_events(s, model)
+    assert [e for e in events if isinstance(e, Assign)] == []
+    assert {Dispatch(0, cell) for cell in (K1, K2, C1, C2)} <= set(events)
+
+
 # dispatch
 
 

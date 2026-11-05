@@ -2,7 +2,7 @@
 
     Event           Guard
     order(o)        |Q| < Qmax
-    assign(i, o)    o in Q, m_i = Idle, o_i = none, |H_i| = 1, feas(i, o)
+    assign(i, o)    o in Q, m_i = Idle, o_i = none, |H_i| = 1, feas(i, o), pos_i in {C U K}
     dispatch(i, g)  |H_i| = 1, pos_i in B, free(g) and one of:
                       (a) m_i = Idle, o_i != none, g = pickup of o_i
                       (b) m_i = Loaded, g = delivery of o_i
@@ -100,6 +100,7 @@ def is_enabled(s: SystemState, e: Event, model: Model) -> bool:
                 and s.robots[i].order is None
                 and len(s.robots[i].held) == 1
                 and feas(s, i, o, model)
+                and pos(s, i) in (model.layout.chargers + model.layout.parkings)
             )
         case Dispatch(robot=i, goal=g):
             on_buffer_cell = (
