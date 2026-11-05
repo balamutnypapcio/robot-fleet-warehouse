@@ -221,6 +221,45 @@ def test_dispatch_blocked_to_the_cell_it_stands_on(model):
     assert is_enabled(system(robot(C1)), Dispatch(0, C1), model) is False
 
 
+# dispatch: energy (S2), not in Table 2
+
+
+def test_dispatch_c_needs_energy_to_reach_that_charger(model):
+    # K1 -> C1: 2 moves
+    assert is_enabled(system(robot(K1, battery=2)), Dispatch(0, C1), model) is True
+    assert is_enabled(system(robot(K1, battery=1)), Dispatch(0, C1), model) is False
+
+
+def test_dispatch_c_counts_the_chosen_charger_not_the_nearest(model):
+    # K1 -> C2: 3 moves, although C1 is only 2 moves away
+    assert is_enabled(system(robot(K1, battery=3)), Dispatch(0, C2), model) is True
+    assert is_enabled(system(robot(K1, battery=2)), Dispatch(0, C2), model) is False
+
+
+def test_dispatch_d_needs_energy_to_park_and_then_reach_the_nearest_charger(model):
+    # C2 -> K2: 6 moves, K2 -> nearest charger C1: 3 moves (the farther C2 is 4 moves away)
+    assert is_enabled(system(robot(C2, battery=9)), Dispatch(0, K2), model) is True
+    assert is_enabled(system(robot(C2, battery=8)), Dispatch(0, K2), model) is False
+
+
+def test_dispatch_energy_check_does_not_use_the_reserve(mini):
+    model = Model(layout=mini, routes=build_routes(mini), q_max=2, b_res=50)
+    assert is_enabled(system(robot(K1, battery=2)), Dispatch(0, C1), model) is True
+    assert is_enabled(system(robot(C2, battery=9)), Dispatch(0, K2), model) is True
+
+
+def test_dispatch_with_an_order_has_no_extra_energy_check(model):
+    # feas() has already checked the whole trip in assign.
+    assert is_enabled(system(robot(K1, order=ORDER, battery=1)), Dispatch(0, P1), model) is True
+    loaded = system(robot(P1, order=ORDER, mode=Mode.LOADED, battery=1))
+    assert is_enabled(loaded, Dispatch(0, D1), model) is True
+
+
+def test_enabled_events_low_battery_robot_can_only_go_to_a_reachable_charger(model):
+    # K1 -> C1: 2, K1 -> C2: 3, K1 -> K2 and then a charger: 7 + 3
+    assert enabled_events(system(robot(K1, battery=2)), model) == [Dispatch(0, C1)]
+
+
 # enter
 
 

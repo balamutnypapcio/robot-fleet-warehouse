@@ -41,9 +41,9 @@ from fleet.events import (
     Unload,
     Unloaded,
 )
-from fleet.layout import Layout
+from fleet.layout import Cell, Layout
 from fleet.routes import Routes
-from fleet.state import Mode, Order, SystemState, free, next_cell, occ, pos
+from fleet.state import BATTERY_CAPACITY, Mode, Order, SystemState, free, next_cell, occ, pos
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +54,7 @@ class Model:
     routes: Routes
     q_max: int  # Qmax: maximum length of the order queue
     b_res: int  # b_res: safety reserve of battery, in moves
+    capacity: int = BATTERY_CAPACITY  # B: full battery, in moves
 
 
 def feas(s: SystemState, i: int, o: Order, model: Model) -> bool:
@@ -80,6 +81,11 @@ def feas(s: SystemState, i: int, o: Order, model: Model) -> bool:
         + distance_from_delivery_to_charging
     )
     return s.robots[i].battery >= distance + model.b_res
+
+
+def nearest_charging_dist(model: Model, u: Cell) -> int:
+    """delta(u, C): number of moves from cell u to the nearest charger."""
+    return min(model.routes.delta(u, c) for c in model.layout.chargers)
 
 
 def is_enabled(s: SystemState, e: Event, model: Model) -> bool:
@@ -113,11 +119,14 @@ def is_enabled(s: SystemState, e: Event, model: Model) -> bool:
                 s.robots[i].mode is Mode.IDLE
                 and s.robots[i].order is None
                 and g in model.layout.chargers
+                and s.robots[i].battery >= model.routes.delta(s.robots[i].held[0], g)
             )
             idle_no_order_goal_to_parking = (
                 s.robots[i].mode is Mode.IDLE
                 and s.robots[i].order is None
                 and g in model.layout.parkings
+                and s.robots[i].battery
+                >= model.routes.delta(s.robots[i].held[0], g) + nearest_charging_dist(model, g)
             )
             return on_buffer_cell and (
                 idle_and_goal_pickup
