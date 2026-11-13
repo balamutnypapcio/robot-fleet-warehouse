@@ -49,6 +49,7 @@ from fleet.layout import Cell
 from fleet.state import Mode, Order, SystemState
 from fleet.supervisor import Supervisor
 from fleet.transitions import next_state
+from verification.monitors import Monitor
 
 
 @dataclass(frozen=True, slots=True)
@@ -153,12 +154,18 @@ class Simulator:
         supervisor: Supervisor,
         durations: Durations | None = None,
         seed: int = 0,
+        monitor: Monitor | None = None,
     ) -> None:
-        """Remember the arguments (Durations() if durations is None), create Random(seed)."""
+        """Remember the arguments (Durations() if durations is None), create Random(seed).
+
+        If a monitor is given, it checks S1-S3 after every applied event and stops the run with
+        MonitorViolation on the first violation (issue #11).
+        """
         self.model = model
         self.supervisor = supervisor
         self.durations = Durations() if durations is None else durations
         self._rng = Random(seed)
+        self.monitor = monitor
 
     def run(self, s: SystemState, orders: list[Order], time_limit: float | None = None) -> Result:
         """Simulate from state s (see the loop above).
@@ -182,6 +189,8 @@ class Simulator:
         def apply(s: SystemState, e: Event, now: float) -> SystemState:
             s = next_state(s, e, self.model)
             log.append(log_entry(now, e, s))
+            if self.monitor is not None:
+                self.monitor.check(now, s, log)
             c = completion(e, self.durations, self._rng)
             if c is not None:
                 heapq.heappush(heap, (now + c[1], next(counter), c[0]))
