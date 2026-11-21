@@ -33,6 +33,7 @@ from sim.simulator import (
     completion,
     is_final,
     log_entry,
+    read_csv,
     write_csv,
 )
 
@@ -250,6 +251,31 @@ def test_write_csv_of_a_whole_run(tmp_path, mini):
         rows = list(csv.DictReader(f))
     assert len(rows) == len(result.log)
     assert [r["event"] for r in rows] == [type(e.event).__name__ for e in result.log]
+
+
+def test_read_csv_gives_back_the_log(tmp_path, mini):
+    result, _ = simulate(mini, [ORDER])
+    path = tmp_path / "run.csv"
+    write_csv(result.log, path)
+    assert read_csv(path) == result.log
+
+
+def test_read_csv_replays_to_the_final_state(tmp_path, mini):
+    orders = random_orders(mini, 6, seed=1, horizon=300)
+    result, model = simulate(mini, orders, durations=Durations())
+    path = tmp_path / "run.csv"
+    write_csv(result.log, path)
+    s = initial_state(mini)
+    for entry in read_csv(path):
+        s = next_state(s, entry.event, model)
+    assert s == result.state
+
+
+def test_read_csv_rejects_another_file(tmp_path):
+    path = tmp_path / "other.csv"
+    path.write_text("a,b\n1,2\n")
+    with pytest.raises(ValueError):
+        read_csv(path)
 
 
 # one order from start to end (batch mode)

@@ -52,6 +52,7 @@ from fleet.supervisor import Supervisor
 from fleet.transitions import next_state
 
 CSV_HEADER = ["time", "event", "robot", "cell", "order", "delivery", "created_at"]
+ROBOT_EVENTS = {e.__name__: e for e in (Arrive, Load, Loaded, Unload, Unloaded, Charge, Charged)}
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,7 +142,7 @@ def _cell_text(cell: Cell | None) -> str:
 
 
 def write_csv(log: tuple[LogEntry, ...], path: Path) -> None:
-    """CSV with the header time,event,robot,cell,order,ddelivery,created_at.
+    """CSV with the header time,event,robot,cell,order,delivery,created_at.
 
     time with 3 decimals, event as its name, robot empty for NewOrder, cells as "x y".
     The last three columns describe the order of the event and are empty for the others:
@@ -151,8 +152,6 @@ def write_csv(log: tuple[LogEntry, ...], path: Path) -> None:
         0.000,NewOrder,,1 3,1,3 0,0.000
         0.000,Assign,6,0 1,1,,
         12.500,Enter,3,4 6,,,
-
-
     """
     with open(path, "w", newline="") as f:
         writer = csv.writer(f)
@@ -179,6 +178,56 @@ def write_csv(log: tuple[LogEntry, ...], path: Path) -> None:
                     created_at,
                 ]
             )
+
+
+def _parse_cell(text: str) -> Cell | None:
+    """Parse "x y" into (x, y) and "" into None (the reverse of _cell_text)."""
+    if not text:
+        return None
+    x, y = text.split()
+    return (int(x), int(y))
+
+
+def read_csv(path: Path) -> tuple[LogEntry, ...]:
+    """Read a log written by write_csv back into LogEntry objects.
+
+    NewOrder rows rebuild their Order; Assign rows take the Order of the same id from the
+    NewOrder row before them. Raise ValueError for a file with another header or an unknown event.
+    """
+
+    log = []
+    orders: dict[int, Order] = {}
+    with open(path, newline="") as f:
+        reader = csv.DictReader(f)
+        if reader.fieldnames != CSV_HEADER:
+            raise ValueError(f"{path} is not a simulator log, its header is {reader.fieldnames}")
+        for row in reader:
+            t = float(row["time"])
+            name = row["event"]
+            robot = int(row["robot"]) if row["robot"] else None
+            cell = _parse_cell(row["cell"])
+            match name:
+                case "NewOrder":
+                    o = Order(
+                        id=int(row["order"]),
+                        pickup=cell,
+                        delivery=_parse_cell(row["delivery"]),
+                        created_at=float(row["created_at"]),
+                    )
+                    orders[o.id] = o
+                    e = NewOrder(o)
+                case "Assign":
+                    e = Assign(robot, orders[int(row["order"])])
+                case "Dispatch":
+                    e = Dispatch(robot, cell)
+                case "Enter":
+                    e = Enter(robot, cell)
+                case _:
+                    if name not in ROBOT_EVENTS:
+                        raise ValueError(f"unknown event {name!r} in {path}")
+                    e = ROBOT_EVENTS[name](robot)
+            log.append(LogEntry(t, e, robot, cell))
+    return tuple(log)
 
 
 class Simulator:
