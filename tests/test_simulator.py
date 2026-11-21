@@ -225,6 +225,7 @@ def test_log_entry_of_other_events_is_the_robot_position():
 def test_write_csv(tmp_path):
     log = (
         LogEntry(0.0, NewOrder(ORDER), None, P1),
+        LogEntry(0.0, Assign(6, ORDER), 6, K1),
         LogEntry(12.5, Enter(3, (4, 6)), 3, (4, 6)),
         LogEntry(13.25, Arrive(3), 3, (4, 6)),
     )
@@ -233,10 +234,11 @@ def test_write_csv(tmp_path):
     with open(path, newline="") as f:
         rows = list(csv.reader(f))
     assert rows == [
-        ["time", "event", "robot", "cell"],
-        ["0.000", "NewOrder", "", "1 3"],
-        ["12.500", "Enter", "3", "4 6"],
-        ["13.250", "Arrive", "3", "4 6"],
+        ["time", "event", "robot", "cell", "order", "delivery", "created_at"],
+        ["0.000", "NewOrder", "", "1 3", "1", "3 0", "0.000"],
+        ["0.000", "Assign", "6", "0 1", "1", "", ""],
+        ["12.500", "Enter", "3", "4 6", "", "", ""],
+        ["13.250", "Arrive", "3", "4 6", "", "", ""],
     ]
 
 

@@ -33,6 +33,7 @@ from random import Random
 
 from fleet.events import (
     Arrive,
+    Assign,
     Charge,
     Charged,
     Dispatch,
@@ -49,6 +50,8 @@ from fleet.layout import Cell
 from fleet.state import Mode, Order, SystemState
 from fleet.supervisor import Supervisor
 from fleet.transitions import next_state
+
+CSV_HEADER = ["time", "event", "robot", "cell", "order", "delivery", "created_at"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -132,18 +135,50 @@ def log_entry(time: float, e: Event, s: SystemState) -> LogEntry:
             return LogEntry(time=time, event=e, robot=robot, cell=s.robots[e.robot].held[0])
 
 
-def write_csv(log: tuple[LogEntry, ...], path: Path) -> None:
-    """CSV with the header time,event,robot,cell. Example row: 12.500,Enter,3,4 6
+def _cell_text(cell: Cell | None) -> str:
+    """Cell as "x y", or "" for None"""
+    return "" if cell is None else f"{cell[0]} {cell[1]}"
 
-    time with 3 decimals, event as its name, robot empty for NewOrder, cell as "x y".
+
+def write_csv(log: tuple[LogEntry, ...], path: Path) -> None:
+    """CSV with the header time,event,robot,cell,order,ddelivery,created_at.
+
+    time with 3 decimals, event as its name, robot empty for NewOrder, cells as "x y".
+    The last three columns describe the order of the event and are empty for the others:
+    NewOrder -> order id, delivery cell and created_at; Assign -> order id only.
+
+    Example rows:
+        0.000,NewOrder,,1 3,1,3 0,0.000
+        0.000,Assign,6,0 1,1,,
+        12.500,Enter,3,4 6,,,
+
+
     """
     with open(path, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["time", "event", "robot", "cell"])
+        writer.writerow(CSV_HEADER)
         for entry in log:
+            order, delivery, created_at = "", "", ""
+            match entry.event:
+                case NewOrder(order=o):
+                    order = o.id
+                    delivery = _cell_text(o.delivery)
+                    created_at = f"{o.created_at:.3f}"
+                case Assign(order=o):
+                    order = o.id
+
             robot = "" if entry.robot is None else entry.robot
-            cell = "" if entry.cell is None else f"{entry.cell[0]} {entry.cell[1]}"
-            writer.writerow([f"{entry.time:.3f}", type(entry.event).__name__, robot, cell])
+            writer.writerow(
+                [
+                    f"{entry.time:.3f}",
+                    type(entry.event).__name__,
+                    robot,
+                    _cell_text(entry.cell),
+                    order,
+                    delivery,
+                    created_at,
+                ]
+            )
 
 
 class Simulator:
