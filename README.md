@@ -43,13 +43,19 @@ ruff format --check .   # use `ruff format .` to auto-format
 
 CI runs the same three commands on every push and pull request.
 
-## Run the simulator
-
-The simulator is not implemented yet (see issue #9). Once it is, it will be started with:
+### Run the simulator
 
 ```bash
-python -m sim
+python experiments/demo_run.py                    # one batch run, writes experiments/demo_log.csv
+python experiments/animate.py                     # simulate and animate (space pauses)
+python experiments/animate.py --map mini --orders 8 --speed 4
+python experiments/animate.py --save run.mp4      # .mp4 (needs ffmpeg) or .gif instead of a window
+python experiments/animate.py --replay experiments/demo_log.csv   # animate a saved log
 ```
+
+The CSV log (`write_csv` / `read_csv` in `sim/simulator.py`) has the columns
+`time,event,robot,cell,order,delivery,created_at` and holds enough to rebuild every event.
+
 
 ## Workflow
 
