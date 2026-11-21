@@ -30,3 +30,4 @@ durations:  # [low, high]; each duration is drawn uniformly from its range
   loading: [10.0, 20.0]
   unloading: [10.0, 20.0]
   charging: [300.0, 600.0]  # always to a full battery
+
