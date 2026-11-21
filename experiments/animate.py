@@ -2,7 +2,7 @@
 
     python experiments/animate.py                                  # main map, 30 orders
     python experiments/animate.py --map mini --orders 8 --speed 4
-    python experiments/animate.py --save run.gif                   # GIF instead of a window
+    python experiments/animate.py --save run.{mp4/gif}             # GIF or MP4 instead of a window
 
 Space pauses and resumes. Robots are coloured by mode, an x marks the goal of a robot in the
 same colour, and lane cells show their exit directions.
@@ -18,7 +18,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.animation import FuncAnimation, PillowWriter
+from matplotlib.animation import FFMpegWriter, FuncAnimation, PillowWriter
 from matplotlib.lines import Line2D
 from matplotlib.patches import Circle, Rectangle
 
@@ -33,6 +33,7 @@ from sim.simulator import Result, Simulator
 
 LAYOUTS = Path(__file__).resolve().parents[1] / "layouts"
 FPS = 25
+WRITERS = {".gif": PillowWriter, ".mp4": FFMpegWriter}
 
 CELL_COLOURS = {  # Fig. 1 of the proposal
     CellKind.LANE: "#ededed",
@@ -55,6 +56,14 @@ MODE_COLOURS = {
     Mode.TO_PARK: "#8e44ad",
 }
 ARROWS = {Direction.N: "↑", Direction.E: "→", Direction.S: "↓", Direction.W: "←"}
+
+
+def writer_for(path: Path) -> PillowWriter | FFMpegWriter:
+    """Matplotlib writer for extension of path (.gif or .mp4)"""
+    suffix = path.suffix.lower()
+    if suffix not in WRITERS:
+        raise ValueError(f"Cannot save {path} -- use .gif or .mp4 format")
+    return WRITERS[suffix](fps=FPS)
 
 
 @dataclass(frozen=True, slots=True)
@@ -258,9 +267,12 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--horizon", type=float, default=600.0, help="orders come in [0, h] s")
     parser.add_argument("--speed", type=float, default=10.0, help="warehouse seconds per second")
-    parser.add_argument("--save", type=Path, help="write a GIF instead of opening a window")
+    parser.add_argument(
+        "--save", type=Path, help="write a .gif or .mp4 instead of opening a window"
+    )
     args = parser.parse_args()
 
+    writer = writer_for(args.save) if args.save is not None else None
     layout = load_layout(LAYOUTS / f"{args.map}.yaml")
     model, orders, result = simulate(layout, args.orders, args.seed, args.horizon)
     print(
@@ -269,7 +281,7 @@ def main() -> None:
     )
     fig, anim = build_animation(layout, model, orders, result, args.speed)
     if args.save is not None:
-        anim.save(args.save, writer=PillowWriter(fps=FPS))
+        anim.save(args.save, writer=writer)
         print(f"saved {args.save}")
     else:
         plt.show()
