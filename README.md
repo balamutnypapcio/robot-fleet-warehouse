@@ -45,11 +45,26 @@ CI runs the same three commands on every push and pull request.
 
 ## Run the simulator
 
-The simulator is not implemented yet (see issue #9). Once it is, it will be started with:
+A simulation run is described by a scenario file (YAML) in `scenarios/`:
 
 ```bash
-python -m sim
+python -m sim.run scenarios/default.yaml                 # print a summary of the run
+python -m sim.run scenarios/default.yaml --out log.csv   # also write the event log as CSV
+python -m sim.run scenarios/default.yaml --seed 7        # override the seed of the file
 ```
+
+Two modes, chosen with `mode:` in the scenario file:
+
+- `continuous`: Poisson order arrivals with rate `rate` (lambda, orders per second); the run
+  stops after `duration` seconds.
+- `batch`: `orders` (N) orders at t = 0; the run stops when nothing more can happen, i.e. in
+  s_fin (all delivered, every robot idle on a charger or parking place) or when stuck. A batch
+  run that does not reach s_fin exits with code 1.
+
+The file also sets the layout, the seed, Qmax (`queue_max`), the battery capacity B and
+reserve b_res, the `b_low` of the baseline policy and the duration ranges. See
+[`scenarios/default.yaml`](scenarios/default.yaml) for all keys; to make a new scenario, copy it
+and change the values.
 
 ## Workflow
 
