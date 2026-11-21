@@ -9,10 +9,14 @@
     queue_max: 20                            # Qmax
     battery: {capacity: 400, reserve: 3}     # B, b_res (in moves)
     policy: {b_low: 100}                     # parameter of the baseline policy
-    durations: {move: [1.0, 1.5], ...}        # optional, defaults of sim.simulator.Durations
+    durations: {move: [1.0, 1.5], ...}        # [low, high] ranges, see sim.simulator.Durations
 
-Only the block of the chosen mode is used; the other one may stay in the file, so switching
-modes means changing one line.
+Every key is required. Only the block of the chosen mode is used, so switching modes means
+changing one line.
+
+continuous: Poisson order arrivals with rate lambda; the run stops after `duration` seconds.
+batch: N orders at t = 0; the run stops when nothing more can happen, i.e. in s_fin (all
+delivered, every robot idle on a charger or parking place) or when stuck.
 """
 
 from __future__ import annotations
@@ -38,9 +42,9 @@ class Scenario:
     layout: Path  # absolute path of the layout YAML
     seed: int
     mode: str  # "continuous" or "batch"
-    rate: float | None  # lambda, continuous mode only
-    duration: float | None  # time limit, continuous mode only
-    orders: int | None  # N, batch mode only
+    rate: float  # lambda, continuous mode only
+    duration: float  # time limit, continuous mode only
+    orders: int  # N, batch mode only
     queue_max: int  # Qmax
     capacity: int  # B
     reserve: int  # b_res
@@ -53,29 +57,21 @@ def load_scenario(path: str | Path) -> Scenario:
     path = Path(path)
     with open(path, encoding="utf-8") as f:
         data = yaml.safe_load(f)
-    return parse_scenario(data, base_dir=path.resolve().parent)
-
-
-def parse_scenario(data: dict, base_dir: Path) -> Scenario:
-    """Build a Scenario from the parsed YAML mapping."""
-    mode = data["mode"]
-    if mode not in ("continuous", "batch"):
-        raise ValueError(f"mode must be continuous or batch, got {mode!r}")
-    continuous = mode == "continuous"
-    ranges = data.get("durations", {})
+    if data["mode"] not in ("continuous", "batch"):
+        raise ValueError(f"mode must be continuous or batch, got {data['mode']!r}")
     return Scenario(
-        name=data.get("name", ""),
-        layout=(base_dir / data["layout"]).resolve(),  # an absolute path stays as it is
-        seed=data.get("seed", 0),
-        mode=mode,
-        rate=data["continuous"]["rate"] if continuous else None,
-        duration=float(data["continuous"]["duration"]) if continuous else None,
-        orders=None if continuous else data["batch"]["orders"],
+        name=data["name"],
+        layout=(path.parent / data["layout"]).resolve(),  # an absolute path stays as it is
+        seed=data["seed"],
+        mode=data["mode"],
+        rate=data["continuous"]["rate"],
+        duration=float(data["continuous"]["duration"]),
+        orders=data["batch"]["orders"],
         queue_max=data["queue_max"],
         capacity=data["battery"]["capacity"],
         reserve=data["battery"]["reserve"],
         b_low=data["policy"]["b_low"],
-        durations=Durations(**{key: tuple(value) for key, value in ranges.items()}),
+        durations=Durations(**{key: tuple(value) for key, value in data["durations"].items()}),
     )
 
 
@@ -91,30 +87,20 @@ def build_model(sc: Scenario) -> Model:
     )
 
 
-def max_order_need(model: Model) -> int:
-    """Largest energy feas can ask for from a home cell (a charger or a parking place):
+def check_energy(sc: Scenario, model: Model) -> None:
+    """Raise ValueError if B or b_low is below the largest energy need of an order.
 
-    max over home h, pick-up p, delivery d of
-        delta(h, p) + delta(p, d) + max over c in C of delta(d, c) + b_res
+    The need is the largest feas bound from a home cell h (charger or parking place):
+    max over h, p, d of delta(h, p) + delta(p, d) + max over c of delta(d, c) + b_res.
+    Without this check a wrong scenario does not crash, the robots just get stuck.
     """
     layout, delta = model.layout, model.routes.delta
-    return max(
+    need = max(
         delta(h, p) + delta(p, d) + max(delta(d, c) for c in layout.chargers) + model.b_res
         for h in layout.chargers + layout.parkings
         for p in layout.pickups
         for d in layout.deliveries
     )
-
-
-def check_energy(sc: Scenario, model: Model) -> None:
-    """Raise ValueError if a full battery or b_low is below the largest need of an order.
-
-    Without this check a wrong scenario does not crash, the robots just get stuck:
-    capacity too small: some order is never feasible, even for a fully charged robot;
-    b_low too small: a robot can be too weak for every order and still not go charging
-    (see BaselinePolicy).
-    """
-    need = max_order_need(model)
     if sc.capacity < need or sc.b_low < need:
         raise ValueError(
             f"battery.capacity ({sc.capacity}) and policy.b_low ({sc.b_low}) must be at least "

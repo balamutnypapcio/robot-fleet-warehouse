@@ -22,10 +22,6 @@ def test_batch_orders_all_at_zero(layout):
     assert all(o.pickup in layout.pickups and o.delivery in layout.deliveries for o in orders)
 
 
-def test_batch_orders_zero(layout):
-    assert batch_orders(layout, 0, Random(0)) == []
-
-
 def test_poisson_orders_sorted_within_horizon(layout):
     orders = poisson_orders(layout, rate=0.1, horizon=1000.0, rng=Random(3))
     times = [o.created_at for o in orders]

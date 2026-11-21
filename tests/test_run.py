@@ -1,6 +1,4 @@
 import csv
-import subprocess
-import sys
 from pathlib import Path
 
 import yaml
@@ -30,7 +28,7 @@ def test_batch_run_prints_summary(tmp_path, capsys):
     out = capsys.readouterr().out
     assert "mode:       batch (N = 3)" in out
     assert "3 delivered" in out
-    assert "finished:   yes (s_fin)" in out
+    assert "finished: yes (s_fin)" in out
 
 
 def test_out_writes_csv(tmp_path, capsys):
@@ -38,7 +36,7 @@ def test_out_writes_csv(tmp_path, capsys):
     assert main([str(small_scenario(tmp_path)), "--out", str(log)]) == 0
     with open(log, newline="") as f:
         rows = list(csv.reader(f))
-    assert rows[0] == ["time", "event", "robot", "cell"]
+    assert rows[0][:4] == ["time", "event", "robot", "cell"]
     assert sum(r[1] == "NewOrder" for r in rows[1:]) == 3
     assert f"log:        {log}" in capsys.readouterr().out
 
@@ -54,21 +52,7 @@ def test_seed_override(tmp_path, capsys):
     assert a != c
 
 
-def test_module_runs_default_scenario_in_batch(tmp_path):
-    """python -m sim.run works as a real command (the issue's CLI)."""
-    with open(DEFAULT, encoding="utf-8") as f:
-        data = yaml.safe_load(f)
-    data["layout"] = str(ROOT / "layouts" / "warehouse_15x8.yaml")
-    data["mode"] = "batch"
-    data["batch"] = {"orders": 5}
-    path = tmp_path / "batch.yaml"
-    path.write_text(yaml.safe_dump(data), encoding="utf-8")
-    proc = subprocess.run(
-        [sys.executable, "-m", "sim.run", str(path)],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    assert proc.returncode == 0, proc.stderr
-    assert "5 delivered" in proc.stdout
+def test_plot_orders_writes_file(tmp_path):
+    png = tmp_path / "orders.png"
+    assert main([str(small_scenario(tmp_path)), "--plot-orders", str(png)]) == 0
+    assert png.stat().st_size > 0

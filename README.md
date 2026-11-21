@@ -45,26 +45,20 @@ CI runs the same three commands on every push and pull request.
 
 ## Run the simulator from a scenario
 
-A simulation run is described by a scenario file (YAML) in `scenarios/`:
+A scenario file in `scenarios/` sets the layout, seed, mode (`continuous` Poisson arrivals or
+`batch` of N orders), Qmax, battery and durations; see [`sim/scenario.py`](sim/scenario.py).
+To make a new one, copy [`scenarios/default.yaml`](scenarios/default.yaml).
 
 ```bash
 python -m sim.run scenarios/default.yaml                 # print a summary of the run
-python -m sim.run scenarios/default.yaml --out log.csv   # also write the event log as CSV
 python -m sim.run scenarios/default.yaml --seed 7        # override the seed of the file
+python -m sim.run scenarios/default.yaml --plot-orders   # plot the generated orders
+python -m sim.run scenarios/default.yaml --out run.csv   # write the event log as CSV ...
+python experiments/animate.py --replay run.csv --speed 20   # ... and animate it
 ```
 
-Two modes, chosen with `mode:` in the scenario file:
+The replay needs `--map <layout>` if the scenario does not use `warehouse_15x8`.
 
-- `continuous`: Poisson order arrivals with rate `rate` (lambda, orders per second); the run
-  stops after `duration` seconds.
-- `batch`: `orders` (N) orders at t = 0; the run stops when nothing more can happen, i.e. in
-  s_fin (all delivered, every robot idle on a charger or parking place) or when stuck. A batch
-  run that does not reach s_fin exits with code 1.
-
-The file also sets the layout, the seed, Qmax (`queue_max`), the battery capacity B and
-reserve b_res, the `b_low` of the baseline policy and the duration ranges. See
-[`scenarios/default.yaml`](scenarios/default.yaml) for all keys; to make a new scenario, copy it
-and change the values.
 ### Run the simulator
 
 ```bash

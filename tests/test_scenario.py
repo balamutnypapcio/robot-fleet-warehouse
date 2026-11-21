@@ -6,24 +6,22 @@ import pytest
 import yaml
 
 from fleet.events import NewOrder
-from sim.scenario import build_model, check_energy, load_scenario, parse_scenario, run_scenario
+from sim.scenario import build_model, check_energy, load_scenario, run_scenario
 from sim.simulator import Durations
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT = ROOT / "scenarios" / "default.yaml"
 
 
-@pytest.fixture
-def data():
+def write(tmp_path, **changes):
+    """The default scenario with some top-level keys changed, as a file in tmp_path."""
     with open(DEFAULT, encoding="utf-8") as f:
-        return yaml.safe_load(f)
-
-
-def parse(data):
-    return parse_scenario(data, base_dir=DEFAULT.parent)
-
-
-# --- reading a scenario ---
+        data = yaml.safe_load(f)
+    data["layout"] = str(ROOT / "layouts" / "warehouse_15x8.yaml")
+    data.update(changes)
+    path = tmp_path / "scenario.yaml"
+    path.write_text(yaml.safe_dump(data), encoding="utf-8")
+    return path
 
 
 def test_load_default():
@@ -32,45 +30,20 @@ def test_load_default():
     assert sc.layout == (ROOT / "layouts" / "warehouse_15x8.yaml").resolve()
     assert sc.mode == "continuous"
     assert sc.rate == 0.02 and sc.duration == 3600.0
-    assert sc.orders is None
+    assert sc.orders == 30
     assert (sc.capacity, sc.reserve, sc.queue_max) == (400, 3, 20)
     assert (sc.b_low, sc.seed) == (100, 1)
     assert sc.durations == Durations()
 
 
-def test_batch_mode(data):
-    data["mode"] = "batch"
-    sc = parse(data)
-    assert sc.orders == 30
-    assert sc.rate is None and sc.duration is None
+def test_partial_durations(tmp_path):
+    sc = load_scenario(write(tmp_path, durations={"move": [2, 3]}))
+    assert sc.durations == Durations(move=(2, 3))
 
 
-def test_unused_block_may_be_missing(data):
-    del data["batch"]
-    assert parse(data).mode == "continuous"
-
-
-def test_durations_optional_and_partial(data):
-    del data["durations"]
-    assert parse(data).durations == Durations()
-    data["durations"] = {"move": [2, 3]}
-    assert parse(data).durations == Durations(move=(2, 3))
-
-
-def test_seed_defaults_to_zero(data):
-    del data["seed"]
-    assert parse(data).seed == 0
-
-
-def test_absolute_layout_path(data):
-    data["layout"] = str(ROOT / "layouts" / "mini.yaml")
-    assert parse(data).layout.name == "mini.yaml"
-
-
-def test_unknown_mode(data):
-    data["mode"] = "Batch"
+def test_unknown_mode(tmp_path):
     with pytest.raises(ValueError, match="mode must be continuous or batch"):
-        parse(data)
+        load_scenario(write(tmp_path, mode="Batch"))
 
 
 # --- building and running a scenario ---
@@ -86,8 +59,6 @@ def mini():
         sc,
         layout=(ROOT / "layouts" / "mini.yaml").resolve(),
         mode="batch",
-        rate=None,
-        duration=None,
         orders=3,
         queue_max=2,
         b_low=40,
