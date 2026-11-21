@@ -3,6 +3,7 @@
     python experiments/animate.py                                  # main map, 30 orders
     python experiments/animate.py --map mini --orders 8 --speed 4
     python experiments/animate.py --save run.gif                   # GIF instead of a window
+    python experiments/animate.py --save run.mp4                   # MP4 (needs ffmpeg)
 
 Space pauses and resumes. Robots are coloured by mode, an x marks the goal of a robot in the
 same colour, and lane cells show their exit directions.
@@ -18,7 +19,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.animation import FuncAnimation, PillowWriter
+from matplotlib.animation import FFMpegWriter, FuncAnimation, PillowWriter
 from matplotlib.lines import Line2D
 from matplotlib.patches import Circle, Rectangle
 
@@ -251,6 +252,17 @@ def build_animation(
     return fig, anim
 
 
+def save_animation(anim: FuncAnimation, path: Path) -> None:
+    """Write the animation to a .gif (Pillow) or .mp4 (needs ffmpeg on PATH)."""
+    if path.suffix.lower() == ".mp4":
+        if not FFMpegWriter.isAvailable():
+            raise SystemExit("MP4 export needs ffmpeg (sudo apt install ffmpeg); use .gif instead")
+        writer = FFMpegWriter(fps=FPS, bitrate=2000)
+    else:
+        writer = PillowWriter(fps=FPS)
+    anim.save(path, writer=writer)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--map", default="warehouse_15x8", help="layout name in layouts/")
@@ -258,7 +270,7 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--horizon", type=float, default=600.0, help="orders come in [0, h] s")
     parser.add_argument("--speed", type=float, default=10.0, help="warehouse seconds per second")
-    parser.add_argument("--save", type=Path, help="write a GIF instead of opening a window")
+    parser.add_argument("--save", type=Path, help="write a .gif or .mp4 instead of a window")
     args = parser.parse_args()
 
     layout = load_layout(LAYOUTS / f"{args.map}.yaml")
@@ -269,7 +281,7 @@ def main() -> None:
     )
     fig, anim = build_animation(layout, model, orders, result, args.speed)
     if args.save is not None:
-        anim.save(args.save, writer=PillowWriter(fps=FPS))
+        save_animation(anim, args.save)
         print(f"saved {args.save}")
     else:
         plt.show()
