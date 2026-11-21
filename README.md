@@ -43,7 +43,7 @@ ruff format --check .   # use `ruff format .` to auto-format
 
 CI runs the same three commands on every push and pull request.
 
-## Run the simulator
+## Run the simulator from a scenario
 
 A simulation run is described by a scenario file (YAML) in `scenarios/`:
 
@@ -65,6 +65,19 @@ The file also sets the layout, the seed, Qmax (`queue_max`), the battery capacit
 reserve b_res, the `b_low` of the baseline policy and the duration ranges. See
 [`scenarios/default.yaml`](scenarios/default.yaml) for all keys; to make a new scenario, copy it
 and change the values.
+### Run the simulator
+
+```bash
+python experiments/demo_run.py                    # one batch run, writes experiments/demo_log.csv
+python experiments/animate.py                     # simulate and animate (space pauses)
+python experiments/animate.py --map mini --orders 8 --speed 4
+python experiments/animate.py --save run.mp4      # .mp4 (needs ffmpeg) or .gif instead of a window
+python experiments/animate.py --replay experiments/demo_log.csv   # animate a saved log
+```
+
+The CSV log (`write_csv` / `read_csv` in `sim/simulator.py`) has the columns
+`time,event,robot,cell,order,delivery,created_at` and holds enough to rebuild every event.
+
 
 ## Workflow
 
