@@ -1,0 +1,33 @@
+# Default scenario: the warehouse of Fig. 1 of the proposal with 10 robots.
+# Run with: python -m sim.run scenarios/default.yaml
+#
+# All times are in seconds, battery values in moves (one move = one cell).
+
+name: default
+layout: ../layouts/warehouse_15x8.yaml  # relative to this file
+seed: 1  # one seed for orders, durations and the policy: same seed -> same run
+
+mode: continuous  # continuous | batch; only the block of the chosen mode is used
+
+continuous:
+  rate: 0.02  # lambda: Poisson order arrivals per second (72 per hour)
+  duration: 3600.0  # orders arrive on [0, duration]; the run stops at duration
+
+batch:
+  orders: 30  # N orders at t = 0; the run stops at s_fin (or when stuck)
+
+queue_max: 20  # Qmax: maximum length of the order queue
+
+battery:
+  capacity: 400  # B: full battery
+  reserve: 3  # b_res: safety reserve kept by feas
+
+policy:  # the baseline policy
+  b_low: 100  # below this a robot gets no orders and goes charging
+
+durations:  # [low, high]; each duration is drawn uniformly from its range
+  move: [1.0, 1.5]  # one cell
+  loading: [10.0, 20.0]
+  unloading: [10.0, 20.0]
+  charging: [300.0, 600.0]  # always to a full battery
+

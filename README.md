@@ -43,6 +43,22 @@ ruff format --check .   # use `ruff format .` to auto-format
 
 CI runs the same three commands on every push and pull request.
 
+## Run the simulator from a scenario
+
+A scenario file in `scenarios/` sets the layout, seed, mode (`continuous` Poisson arrivals or
+`batch` of N orders), Qmax, battery and durations; see [`sim/scenario.py`](sim/scenario.py).
+To make a new one, copy [`scenarios/default.yaml`](scenarios/default.yaml).
+
+```bash
+python -m sim.run scenarios/default.yaml                 # print a summary of the run
+python -m sim.run scenarios/default.yaml --seed 7        # override the seed of the file
+python -m sim.run scenarios/default.yaml --plot-orders   # plot the generated orders
+python -m sim.run scenarios/default.yaml --out run.csv   # write the event log as CSV ...
+python experiments/animate.py --replay run.csv --speed 20   # ... and animate it
+```
+
+The replay needs `--map <layout>` if the scenario does not use `warehouse_15x8`.
+
 ### Run the simulator
 
 ```bash
