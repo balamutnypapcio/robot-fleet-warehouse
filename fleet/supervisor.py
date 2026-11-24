@@ -44,17 +44,22 @@ class Policy(Protocol):
 class Supervisor:
     """Issues only events that are controllable, enabled and safe, whatever the policy does."""
 
-    def __init__(self, model: Model, policy: Policy) -> None:
-        """Remember the model and the policy."""
+    def __init__(self, model: Model, policy: Policy, use_safe: bool = True) -> None:
+        """Remember the model and the policy.
+
+        use_safe=False switches the deadlock-avoidance test off (only for the sanity check of the
+        deadlock detector, issue #11): the candidates are then all controllable events of EF(s).
+        """
         self.model = model
         self.policy = policy
+        self.use_safe = use_safe
 
     def candidates(self, s: SystemState) -> list[Event]:
-        """Controllable events of EF(s) for which safe(s, e) holds."""
+        """Controllable events of EF(s) for which safe(s, e) holds (if use_safe is on)."""
         return [
             e
             for e in enabled_events(s, self.model)
-            if (type(e) in CONTROLLABLE) and (safe(s, e, self.model))
+            if (type(e) in CONTROLLABLE) and (not self.use_safe or safe(s, e, self.model))
         ]
 
     def decide(self, s: SystemState) -> list[Event]:
